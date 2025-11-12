@@ -202,6 +202,32 @@ def search_image():
             embedding = feat_ext.extract(image)
             all_results = search_eng.search(embedding, top_k=top_k, threshold=threshold)
         
+        # Group results by SKU and get all images for each SKU
+        sku_results = {}
+        sku_mapping = utils.load_sku_mapping()
+        
+        for result in all_results:
+            sku_id = result.get('sku_id')
+            if sku_id and sku_id not in sku_results:
+                # Get all images for this SKU
+                sku_images = utils.get_images_for_sku(sku_id, sku_mapping)
+                
+                sku_results[sku_id] = {
+                    'sku_id': sku_id,
+                    'product_name': result.get('product_name'),
+                    'category': result.get('category'),
+                    'price': result.get('price'),
+                    'description': result.get('description', ''),
+                    'similarity': result['similarity'],
+                    'matched_image': os.path.basename(result['image_path']),
+                    'images': sku_images,
+                    'total_images': len(sku_images)
+                }
+        
+        # Convert to list and sort by similarity
+        final_results = list(sku_results.values())
+        final_results.sort(key=lambda x: x['similarity'], reverse=True)
+        
         # Calculate query time
         query_time = time.time() - start_time
         
@@ -215,7 +241,7 @@ def search_image():
             'success': True,
             'query_time': round(query_time, 3),
             'detected_objects': len(detections) if detect_objects else 0,
-            'results': all_results
+            'results': final_results
         })
         
     except Exception as e:
@@ -381,10 +407,10 @@ def index_status():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/database/<path:filename>')
+@app.route('/database/products/<path:filename>')
 def serve_database_image(filename):
-    """Serve images from the database directory"""
-    return send_from_directory(config.DATABASE_DIR, filename)
+    """Serve images from the database/products directory"""
+    return send_from_directory(config.PRODUCTS_DIR, filename)
 
 
 @app.errorhandler(413)

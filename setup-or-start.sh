@@ -77,6 +77,9 @@ fi
 # Activate virtual environment
 source venv/bin/activate
 
+# Load environment variables (suppress warnings)
+export KMP_DUPLICATE_LIB_OK=TRUE
+
 # Create necessary directories
 echo "📁 Creating directory structure..."
 mkdir -p database/products
@@ -86,17 +89,29 @@ mkdir -p templates
 echo "   ✅ Directories created"
 echo ""
 
-# Check for dataset CSV (SKU mapping)
-if [ ! -f "database/products.csv" ]; then
-    echo "📋 Creating sample products.csv for SKU mapping..."
-    cat > database/products.csv << 'EOF'
-filename,sku_id,product_name,category,price
-sample_product_1.jpg,SKU-001,Sample Product 1,Electronics,99.99
-sample_product_2.jpg,SKU-002,Sample Product 2,Clothing,49.99
-sample_product_3.jpg,SKU-003,Sample Product 3,Home & Garden,29.99
+# Check for dataset JSON (SKU mapping)
+if [ ! -f "database/products.json" ]; then
+    echo "📋 Creating sample products.json for SKU mapping..."
+    cat > database/products.json << 'EOF'
+{
+  "products": [
+    {
+      "sku_id": "SKU-001",
+      "product_name": "Sample Product 1",
+      "category": "Electronics",
+      "price": "99.99",
+      "description": "Sample product description",
+      "images": [
+        "sample_product_1.jpg",
+        "sample_product_2.jpg",
+        "sample_product_3.jpg"
+      ]
+    }
+  ]
+}
 EOF
-    echo "   ✅ Sample products.csv created"
-    echo "   📝 Edit database/products.csv to add your product SKUs"
+    echo "   ✅ Sample products.json created"
+    echo "   📝 Edit database/products.json to add your product SKUs"
     echo ""
 fi
 

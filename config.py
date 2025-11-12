@@ -11,8 +11,8 @@ PRODUCTS_DIR = os.path.join(DATABASE_DIR, 'products')  # Product images folder
 EMBEDDINGS_DIR = os.path.join(BASE_DIR, 'embeddings')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 
-# SKU mapping file (CSV with: filename,sku_id,product_name,category,price)
-PRODUCTS_CSV = os.path.join(DATABASE_DIR, 'products.csv')
+# SKU mapping file (JSON format only)
+PRODUCTS_JSON = os.path.join(DATABASE_DIR, 'products.json')
 
 # Create directories if they don't exist
 for directory in [DATABASE_DIR, PRODUCTS_DIR, EMBEDDINGS_DIR, UPLOAD_DIR]:

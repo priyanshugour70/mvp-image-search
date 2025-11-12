@@ -6,8 +6,9 @@ import os
 import logging
 from PIL import Image
 import numpy as np
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 import pandas as pd
+import json
 import config
 
 # Setup logging
@@ -170,44 +171,79 @@ def get_database_images() -> list:
 
 def load_sku_mapping() -> Dict[str, Dict]:
     """
-    Load SKU mapping from products.csv
+    Load SKU mapping from products.json (JSON format only)
+    
+    JSON format allows multiple images per SKU:
+    {
+        "products": [
+            {
+                "sku_id": "SKU-001",
+                "product_name": "Product Name",
+                "category": "Category",
+                "price": "99.99",
+                "description": "Optional description",
+                "images": ["img1.jpg", "img2.jpg", "img3.jpg", ...]
+            }
+        ]
+    }
     
     Returns:
         Dictionary mapping filename to product metadata
         {
-            'product_001.jpg': {
+            'image1.jpg': {
                 'sku_id': 'SKU-12345',
                 'product_name': 'Blue Shirt',
                 'category': 'Clothing',
-                'price': '29.99'
+                'price': '29.99',
+                'description': 'Optional',
+                'image_index': 0,  # Index in images list
+                'total_images': 3   # Total images for this SKU
             }
         }
     """
     sku_mapping = {}
     
-    if not os.path.exists(config.PRODUCTS_CSV):
-        logger.warning(f"Products CSV not found: {config.PRODUCTS_CSV}")
+    # Load JSON file
+    if not os.path.exists(config.PRODUCTS_JSON):
+        logger.error(f"Products JSON file not found: {config.PRODUCTS_JSON}")
+        logger.error("Please create database/products.json with your product information")
         return sku_mapping
     
     try:
-        df = pd.read_csv(config.PRODUCTS_CSV)
+        with open(config.PRODUCTS_JSON, 'r') as f:
+            data = json.load(f)
         
-        # Convert to dictionary
-        for _, row in df.iterrows():
-            filename = row.get('filename', '')
-            if filename:
-                sku_mapping[filename] = {
-                    'sku_id': row.get('sku_id', ''),
-                    'product_name': row.get('product_name', ''),
-                    'category': row.get('category', ''),
-                    'price': row.get('price', '')
+        # Process each product
+        for product in data.get('products', []):
+            sku_id = product.get('sku_id', '')
+            product_name = product.get('product_name', '')
+            category = product.get('category', '')
+            price = product.get('price', '')
+            description = product.get('description', '')
+            images = product.get('images', [])
+            
+            # Map each image to the product info
+            for idx, image_filename in enumerate(images):
+                sku_mapping[image_filename] = {
+                    'sku_id': sku_id,
+                    'product_name': product_name,
+                    'category': category,
+                    'price': price,
+                    'description': description,
+                    'image_index': idx,
+                    'total_images': len(images)
                 }
         
-        logger.info(f"Loaded {len(sku_mapping)} SKU mappings")
+        logger.info(f"Loaded {len(sku_mapping)} image mappings from products.json ({len(data.get('products', []))} products)")
+        return sku_mapping
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in products.json: {e}")
+        logger.error("Please check your JSON syntax")
+        return sku_mapping
     except Exception as e:
-        logger.error(f"Error loading SKU mapping: {e}")
-    
-    return sku_mapping
+        logger.error(f"Error loading products.json: {e}")
+        return sku_mapping
 
 
 def get_sku_for_image(image_path: str, sku_mapping: Dict[str, Dict] = None) -> Dict:
@@ -219,7 +255,10 @@ def get_sku_for_image(image_path: str, sku_mapping: Dict[str, Dict] = None) -> D
         sku_mapping: Optional pre-loaded SKU mapping
         
     Returns:
-        Dictionary with SKU information
+        Dictionary with SKU information including:
+        - sku_id, product_name, category, price, description
+        - image_index: Index of this image in the product's image list
+        - total_images: Total images for this SKU
     """
     if sku_mapping is None:
         sku_mapping = load_sku_mapping()
@@ -234,8 +273,64 @@ def get_sku_for_image(image_path: str, sku_mapping: Dict[str, Dict] = None) -> D
         'sku_id': f'SKU-{filename}',
         'product_name': filename,
         'category': 'Unknown',
-        'price': ''
+        'price': '',
+        'description': '',
+        'image_index': 0,
+        'total_images': 1
     }
+
+
+def get_images_for_sku(sku_id: str, sku_mapping: Dict[str, Dict] = None) -> List[str]:
+    """
+    Get all image filenames for a given SKU
+    
+    Args:
+        sku_id: SKU identifier
+        sku_mapping: Optional pre-loaded SKU mapping
+        
+    Returns:
+        List of image filenames for this SKU
+    """
+    if sku_mapping is None:
+        sku_mapping = load_sku_mapping()
+    
+    images = []
+    for filename, info in sku_mapping.items():
+        if info.get('sku_id') == sku_id:
+            images.append(filename)
+    
+    return sorted(images)
+
+
+def get_all_skus(sku_mapping: Dict[str, Dict] = None) -> List[Dict]:
+    """
+    Get list of all unique SKUs with their information
+    
+    Args:
+        sku_mapping: Optional pre-loaded SKU mapping
+        
+    Returns:
+        List of unique products with their info and image counts
+    """
+    if sku_mapping is None:
+        sku_mapping = load_sku_mapping()
+    
+    skus = {}
+    for filename, info in sku_mapping.items():
+        sku_id = info.get('sku_id')
+        if sku_id not in skus:
+            skus[sku_id] = {
+                'sku_id': sku_id,
+                'product_name': info.get('product_name'),
+                'category': info.get('category'),
+                'price': info.get('price'),
+                'description': info.get('description', ''),
+                'image_count': info.get('total_images', 1),
+                'images': []
+            }
+        skus[sku_id]['images'].append(filename)
+    
+    return list(skus.values())
 
 
 def format_similarity_score(score: float) -> str:
