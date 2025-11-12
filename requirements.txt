@@ -1,9 +1,13 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-torch==2.2.0
-torchvision==0.17.0
-transformers==4.35.0
+flask==3.0.0
+flask-cors==4.0.0
 pillow==10.1.0
+numpy==1.26.2
+torch==2.1.1
+torchvision==0.16.1
+ultralytics==8.0.231
+transformers==4.36.0
 faiss-cpu==1.7.4
-python-multipart==0.0.6
+opencv-python==4.8.1.78
+requests==2.31.0
+werkzeug==3.0.1
 

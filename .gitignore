@@ -1,12 +1,8 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,31 +19,37 @@ wheels/
 .installed.cfg
 *.egg
 
-# Uploads directory (contains user-uploaded images)
-uploads/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.webp
-*.bmp
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
 
-# Model cache
-.cache/
-transformers_cache/
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# Model weights
+*.pt
+!yolov8n.pt
+
+# Database
+database/
+embeddings/
+*.index
+*.pkl
+
+# Uploads
+uploads/
+static/uploads/
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
-
-# Environment variables
-.env
-.env.local
 
