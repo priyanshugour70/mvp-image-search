@@ -35,19 +35,27 @@ logger = logging.getLogger(__name__)
 
 def index_database(use_objects: bool = False):
     """
-    Index all images in the database directory
+    Index all images in the database directory with SKU information
     
     Args:
         use_objects: If True, detect and index objects instead of whole images
     """
     logger.info("Starting database indexing...")
     
+    # Load SKU mapping from products.csv
+    logger.info("Loading SKU mappings...")
+    sku_mapping = utils.load_sku_mapping()
+    if sku_mapping:
+        logger.info(f"Loaded {len(sku_mapping)} SKU mappings from products.csv")
+    else:
+        logger.warning("No SKU mappings found. Products will be indexed without SKU info.")
+    
     # Get all images from database
     image_paths = utils.get_database_images()
     
     if not image_paths:
-        logger.error(f"No images found in {config.DATABASE_DIR}")
-        logger.info("Please add images to the database directory first")
+        logger.error(f"No images found in {config.PRODUCTS_DIR} or {config.DATABASE_DIR}")
+        logger.info("Please add images to database/products/ directory first")
         return False
     
     logger.info(f"Found {len(image_paths)} images to index")
@@ -63,6 +71,7 @@ def index_database(use_objects: bool = False):
     # Extract embeddings
     all_embeddings = []
     indexed_paths = []
+    all_metadata = []
     
     logger.info("Extracting features...")
     
@@ -82,6 +91,10 @@ def index_database(use_objects: bool = False):
                     
                     all_embeddings.append(embedding)
                     indexed_paths.append(image_path)
+                    
+                    # Get SKU metadata for this image
+                    sku_info = utils.get_sku_for_image(image_path, sku_mapping)
+                    all_metadata.append(sku_info)
                 else:
                     logger.warning(f"No objects detected in {image_path}, skipping")
             else:
@@ -89,6 +102,10 @@ def index_database(use_objects: bool = False):
                 embedding = feature_extractor.extract(image)
                 all_embeddings.append(embedding)
                 indexed_paths.append(image_path)
+                
+                # Get SKU metadata for this image
+                sku_info = utils.get_sku_for_image(image_path, sku_mapping)
+                all_metadata.append(sku_info)
                 
         except Exception as e:
             logger.error(f"Error processing {image_path}: {e}")
@@ -104,18 +121,26 @@ def index_database(use_objects: bool = False):
     import numpy as np
     embeddings_array = np.vstack(all_embeddings)
     
-    # Build search index
-    logger.info("Building FAISS index...")
+    # Build search index with metadata
+    logger.info("Building FAISS index with SKU metadata...")
     search_engine = SearchEngine()
-    search_engine.build_index(embeddings_array, indexed_paths)
+    search_engine.build_index(embeddings_array, indexed_paths, all_metadata)
     
     # Save index
     logger.info("Saving index to disk...")
     search_engine.save_index()
     
     logger.info("✅ Database indexing complete!")
-    logger.info(f"Indexed {len(indexed_paths)} images")
+    logger.info(f"Indexed {len(indexed_paths)} images with SKU information")
     logger.info(f"Index saved to: {config.EMBEDDINGS_DIR}")
+    
+    # Show sample of indexed products
+    if indexed_paths and all_metadata:
+        logger.info("\nSample indexed products:")
+        for i in range(min(3, len(indexed_paths))):
+            logger.info(f"  {i+1}. {os.path.basename(indexed_paths[i])}")
+            logger.info(f"      SKU: {all_metadata[i].get('sku_id', 'N/A')}")
+            logger.info(f"      Name: {all_metadata[i].get('product_name', 'N/A')}")
     
     return True
 

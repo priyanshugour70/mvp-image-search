@@ -7,11 +7,15 @@ import os
 # Base directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_DIR = os.path.join(BASE_DIR, 'database')
+PRODUCTS_DIR = os.path.join(DATABASE_DIR, 'products')  # Product images folder
 EMBEDDINGS_DIR = os.path.join(BASE_DIR, 'embeddings')
 UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 
+# SKU mapping file (CSV with: filename,sku_id,product_name,category,price)
+PRODUCTS_CSV = os.path.join(DATABASE_DIR, 'products.csv')
+
 # Create directories if they don't exist
-for directory in [DATABASE_DIR, EMBEDDINGS_DIR, UPLOAD_DIR]:
+for directory in [DATABASE_DIR, PRODUCTS_DIR, EMBEDDINGS_DIR, UPLOAD_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 # Model configurations

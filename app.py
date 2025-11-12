@@ -187,6 +187,7 @@ def search_image():
                     result['object_class'] = detection['class_name']
                     result['object_confidence'] = detection['confidence']
                     result['bbox'] = detection['bbox']
+                    # Note: SKU info is already in result from search_engine
                 
                 all_results.extend(results)
             
@@ -277,7 +278,11 @@ def add_image():
         search_eng = get_search_engine()
         
         embedding = feat_ext.extract_from_path(filepath)
-        search_eng.add_images(embedding.reshape(1, -1), [filepath])
+        
+        # Get or create SKU info
+        sku_info = utils.get_sku_for_image(filepath)
+        
+        search_eng.add_images(embedding.reshape(1, -1), [filepath], [sku_info])
         
         # Save updated index
         search_eng.save_index()
@@ -317,6 +322,9 @@ def rebuild_index():
                 'error': 'No images found in database directory'
             }), 404
         
+        # Load SKU mappings
+        sku_mapping = utils.load_sku_mapping()
+        
         # Extract features
         feat_ext = get_feature_extractor()
         logger.info(f"Extracting features for {len(image_paths)} images...")
@@ -324,9 +332,12 @@ def rebuild_index():
             [utils.load_image(p) for p in image_paths]
         )
         
+        # Get metadata for all images
+        metadata = [utils.get_sku_for_image(p, sku_mapping) for p in image_paths]
+        
         # Build index
         search_eng = get_search_engine()
-        search_eng.build_index(embeddings, image_paths)
+        search_eng.build_index(embeddings, image_paths, metadata)
         
         # Save index
         search_eng.save_index()

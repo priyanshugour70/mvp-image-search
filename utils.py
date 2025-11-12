@@ -6,7 +6,8 @@ import os
 import logging
 from PIL import Image
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
+import pandas as pd
 import config
 
 # Setup logging
@@ -140,24 +141,101 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def get_database_images() -> list:
     """
-    Get all image files from the database directory
+    Get all image files from the database/products directory
     
     Returns:
         List of image file paths
     """
     image_files = []
     
-    if not os.path.exists(config.DATABASE_DIR):
-        logger.warning(f"Database directory {config.DATABASE_DIR} does not exist")
-        return image_files
+    # Check products directory first
+    products_dir = config.PRODUCTS_DIR
+    if os.path.exists(products_dir):
+        for filename in os.listdir(products_dir):
+            if allowed_file(filename):
+                image_path = os.path.join(products_dir, filename)
+                image_files.append(image_path)
     
-    for filename in os.listdir(config.DATABASE_DIR):
-        if allowed_file(filename):
-            image_path = os.path.join(config.DATABASE_DIR, filename)
-            image_files.append(image_path)
+    # Also check root database directory for backward compatibility
+    if os.path.exists(config.DATABASE_DIR):
+        for filename in os.listdir(config.DATABASE_DIR):
+            if allowed_file(filename):
+                image_path = os.path.join(config.DATABASE_DIR, filename)
+                if image_path not in image_files:  # Avoid duplicates
+                    image_files.append(image_path)
     
     logger.info(f"Found {len(image_files)} images in database")
     return sorted(image_files)
+
+
+def load_sku_mapping() -> Dict[str, Dict]:
+    """
+    Load SKU mapping from products.csv
+    
+    Returns:
+        Dictionary mapping filename to product metadata
+        {
+            'product_001.jpg': {
+                'sku_id': 'SKU-12345',
+                'product_name': 'Blue Shirt',
+                'category': 'Clothing',
+                'price': '29.99'
+            }
+        }
+    """
+    sku_mapping = {}
+    
+    if not os.path.exists(config.PRODUCTS_CSV):
+        logger.warning(f"Products CSV not found: {config.PRODUCTS_CSV}")
+        return sku_mapping
+    
+    try:
+        df = pd.read_csv(config.PRODUCTS_CSV)
+        
+        # Convert to dictionary
+        for _, row in df.iterrows():
+            filename = row.get('filename', '')
+            if filename:
+                sku_mapping[filename] = {
+                    'sku_id': row.get('sku_id', ''),
+                    'product_name': row.get('product_name', ''),
+                    'category': row.get('category', ''),
+                    'price': row.get('price', '')
+                }
+        
+        logger.info(f"Loaded {len(sku_mapping)} SKU mappings")
+    except Exception as e:
+        logger.error(f"Error loading SKU mapping: {e}")
+    
+    return sku_mapping
+
+
+def get_sku_for_image(image_path: str, sku_mapping: Dict[str, Dict] = None) -> Dict:
+    """
+    Get SKU information for an image
+    
+    Args:
+        image_path: Full path to image
+        sku_mapping: Optional pre-loaded SKU mapping
+        
+    Returns:
+        Dictionary with SKU information
+    """
+    if sku_mapping is None:
+        sku_mapping = load_sku_mapping()
+    
+    filename = os.path.basename(image_path)
+    
+    if filename in sku_mapping:
+        return sku_mapping[filename]
+    
+    # If not found, return empty/default values
+    return {
+        'sku_id': f'SKU-{filename}',
+        'product_name': filename,
+        'category': 'Unknown',
+        'price': ''
+    }
 
 
 def format_similarity_score(score: float) -> str:

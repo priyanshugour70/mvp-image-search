@@ -533,8 +533,12 @@
                         <img src="/database/${imagePath}" class="result-image" alt="Result ${index + 1}">
                         <div class="result-info">
                             <div class="similarity-badge">${similarityPercent}% Match</div>
+                            ${result.sku_id ? `<div class="result-detail"><strong>SKU:</strong> ${result.sku_id}</div>` : ''}
+                            ${result.product_name ? `<div class="result-detail"><strong>${result.product_name}</strong></div>` : ''}
+                            ${result.category ? `<div class="result-detail">Category: ${result.category}</div>` : ''}
+                            ${result.price ? `<div class="result-detail">Price: $${result.price}</div>` : ''}
                             ${result.object_class ? `<div class="result-detail">Object: ${result.object_class}</div>` : ''}
-                            ${result.object_confidence ? `<div class="result-detail">Confidence: ${(result.object_confidence * 100).toFixed(1)}%</div>` : ''}
+                            ${result.object_confidence ? `<div class="result-detail">Detection: ${(result.object_confidence * 100).toFixed(1)}%</div>` : ''}
                             <div class="result-detail">Rank: #${result.rank + 1}</div>
                         </div>
                     `;
